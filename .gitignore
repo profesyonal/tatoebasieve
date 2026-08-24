@@ -1,0 +1,28 @@
+# Downloaded Tatoeba corpus exports, generated SQLite databases, and
+# per-script working files. Multi-gigabyte and fully regenerated on
+# every run -- never meant to be committed.
+tatoeba_filter_data/
+
+# tatoebalist.py's runtime state files (written to the repo root,
+# not under tatoeba_filter_data/)
+kept_sentence_ids.txt
+tatoeba_upload_progress.txt
+tatoeba_list_id.txt
+
+# Logs (e.g. from a cron wrapper script)
+*.log
+
+# Credentials -- never commit these
+.env
+*.env
+.tatoeba_env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Editor/OS cruft
+.DS_Store
