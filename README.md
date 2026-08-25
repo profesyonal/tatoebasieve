@@ -106,15 +106,27 @@ detects this and always *reports* it (see `to_remove_sentence_ids.txt`
 after a run), but only actually removes it from Tatoeba when
 `ENABLE_REMOVALS = True` near the top of the file.
 
-This defaults to `False` on purpose: unlike the add-sentence endpoint,
-which was confirmed directly from Tatoeba's own HTML, the
-remove-sentence endpoint's URL was inferred from that naming
-convention and has not been independently confirmed. Before turning
-this on, verify the URL yourself -- log into Tatoeba, remove one
-sentence from a list via the website, and check your browser's network
-tab for the actual request -- and fix `remove_one_sentence()` in
-`tatoeba_common.py` if it doesn't match. See that function's docstring
-for details.
+Both the URL and the response shape for `remove_sentence_from_list`
+are confirmed directly from Tatoeba's own source
+(`src/Controller/SentencesListsController.php`), not inferred: it
+takes `($sentenceId, $listId)`, exactly as used here, and responds
+with `{"removed": true/false}`. That source also caught a real bug
+that had been present since this was first written -- both the add
+and remove requests were checking for a `"result"` key that neither
+response actually contains, so a genuine rejection from Tatoeba would
+have been silently counted as a success. That's fixed now; `"added"`
+and `"removed"` are checked instead. The `"added"` key for
+`add_sentence_to_list` is inferred by direct analogy (same
+controller, same response pattern) rather than independently viewed
+in source the way `"removed"` was.
+
+`ENABLE_REMOVALS` still defaults to `False`. With the endpoint itself
+now confirmed, that's less about verifying the URL and more just
+general caution about an unattended script deleting things from a
+public, collaborative list -- do one live add/remove against a
+throwaway test list first (see `add_one_sentence`/`remove_one_sentence`
+in `tatoeba_common.py`) to confirm the response keys match what's
+documented above, then flip it on.
 
 ### Example cron entry
 

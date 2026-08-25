@@ -460,11 +460,12 @@ def create_list(session, list_name):
     return list_id
 
 
-def _sentence_list_action(session, action, list_id, sentence_id):
+def _sentence_list_action(session, action, list_id, sentence_id, response_key):
     """
     Shared GET-with-retry logic for add_sentence_to_list and
     remove_sentence_from_list. See add_one_sentence/remove_one_sentence
-    docstrings for the retry/backoff policy this implements.
+    docstrings for the retry/backoff policy this implements and for
+    what response_key means for each action.
     """
     url = f"{BASE_URL}/en/sentences_lists/{action}/{sentence_id}/{list_id}"
 
@@ -476,6 +477,13 @@ def _sentence_list_action(session, action, list_id, sentence_id):
                 url,
                 headers={"Accept": "application/json"},
                 timeout=60,
+                # This controller redirects instead of returning JSON
+                # under one specific condition (see remove_one_sentence's
+                # docstring). This client never sends a Referer header,
+                # so that shouldn't trigger -- but if it ever does,
+                # surface it as a diagnosable error rather than silently
+                # following the redirect into an HTML page.
+                allow_redirects=False,
             )
 
             if r.status_code == 429:
@@ -486,6 +494,13 @@ def _sentence_list_action(session, action, list_id, sentence_id):
                 time.sleep(60)
                 network_failures = 0
                 continue
+
+            if r.is_redirect:
+                raise ValueError(
+                    f"unexpected redirect (status {r.status_code}) to "
+                    f"{r.headers.get('Location')!r} instead of a JSON "
+                    "response -- see remove_one_sentence's docstring"
+                )
 
             r.raise_for_status()
 
@@ -503,7 +518,7 @@ def _sentence_list_action(session, action, list_id, sentence_id):
                     f"body: {snippet!r}"
                 ) from e
 
-            return data.get("result") != "error", data
+            return bool(data.get(response_key)), data
 
         except (requests.RequestException, ValueError) as e:
             network_failures += 1
@@ -540,9 +555,20 @@ def add_one_sentence(session, list_id, sentence_id):
 
     This URL was confirmed directly from Tatoeba's own HTML (the
     add-to-list link on a sentence page uses this exact path).
+
+    Success is read from the JSON response's "added" key. That key
+    name is NOT independently confirmed the way remove_one_sentence's
+    "removed" key is (see its docstring) -- it's inferred by direct
+    analogy, since add_sentence_to_list lives in the same controller
+    as remove_sentence_from_list and Tatoeba's own source confirms the
+    latter follows the pattern $this->set('removed', $isRemoved) /
+    $this->set('_serialize', ['removed']). If sentences stop being
+    detected as added despite the request succeeding, check this key
+    name first -- e.g. by adding one sentence via the website with
+    your browser's network tab open.
     """
     return _sentence_list_action(
-        session, "add_sentence_to_list", list_id, sentence_id
+        session, "add_sentence_to_list", list_id, sentence_id, "added"
     )
 
 
@@ -551,18 +577,25 @@ def remove_one_sentence(session, list_id, sentence_id):
     Remove one sentence from a Tatoeba list. Same retry/backoff policy
     as add_one_sentence.
 
-    UNLIKE add_one_sentence, this URL is NOT independently confirmed --
-    it's inferred from add_sentence_to_list's naming convention, since
-    the removal control on Tatoeba's site requires an authenticated
-    page view to inspect and wasn't reachable to verify directly.
-    Tatoeba's own docs/blog confirm the *feature* exists, just not the
-    exact route used here. Before relying on this in an unattended
-    script: log into Tatoeba, open a list you don't mind experimenting
-    on, remove one sentence via the website's UI, and check your
-    browser's network tab for the actual request URL -- confirm it
-    matches (or fix it here) before turning on ENABLE_REMOVALS in
-    tatoeba_sync.py.
+    Both the URL and the response shape are confirmed directly from
+    Tatoeba's own source (src/Controller/SentencesListsController.php,
+    the remove_sentence_from_list action):
+
+        $isRemoved = $this->SentencesLists->removeSentenceFromList(
+            $sentenceId, $listId, $userId
+        );
+        $this->set('removed', $isRemoved);
+        ...
+        $this->set('_serialize', ['removed']);
+
+    One more thing that same source confirms: if the request's
+    Referer header contains 'sentences/show', this action responds
+    with an HTTP redirect back to that page instead of JSON. This
+    client never sends a Referer header, so that shouldn't trigger --
+    but _sentence_list_action disables redirect-following explicitly
+    and treats one as an error if it ever happens, rather than
+    silently following it into an HTML page.
     """
     return _sentence_list_action(
-        session, "remove_sentence_from_list", list_id, sentence_id
+        session, "remove_sentence_from_list", list_id, sentence_id, "removed"
     )
