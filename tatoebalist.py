@@ -47,7 +47,7 @@ UPLOAD_PROGRESS = Path("tatoeba_upload_progress.txt")
 LIST_ID_FILE = Path("tatoeba_list_id.txt")
 
 # Be polite to Tatoeba when adding items to the list.
-UPLOAD_DELAY = 0.10
+UPLOAD_DELAY = 0.05
 
 
 # ============================================================
@@ -747,7 +747,7 @@ def upload_ids(session, list_id):
 # ============================================================
 
 def main():
-    print("Tatoeba proper-name-variant list builder")
+    print("Tatoeba sieve - proper-name variant list builder")
     print()
 
     resuming_list = LIST_ID_FILE.exists()
