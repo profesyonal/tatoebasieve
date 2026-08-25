@@ -89,6 +89,14 @@ INITIAL_NON_NAMES = {
     "ninety-one", "ninety-two", "ninety-three", "ninety-four", "ninety-five", "ninety-six", "ninety-seven", "ninety-eight", "ninety-nine",
     "hundred", "thousand", "million", "billion",
     "hundreds", "thousands", "millions", "billions",
+    # Ordinals, same range as the cardinals above. Only the final
+    # component of a compound ordinal changes form ("twenty-first",
+    # not "twentieth-first"), matching standard English usage.
+    # Ordinals, kept short deliberately: past "tenth" they're not
+    # realistic sentence-openers, so the compound/magnitude forms
+    # that mirrored the cardinals above were cut.
+    "first", "second", "third", "fourth", "fifth",
+    "sixth", "seventh", "eighth", "ninth", "tenth",
     "love", "hate", "hatred", "dogs", "cats", "people",
     "will", "dawn", "may", "grace", "hope", "faith", "rose",
     "mark", "bill", "grant", "pat", "summer", "rich",
@@ -480,7 +488,21 @@ def _sentence_list_action(session, action, list_id, sentence_id):
                 continue
 
             r.raise_for_status()
-            data = r.json()
+
+            try:
+                data = r.json()
+            except ValueError as e:
+                # A JSONDecodeError alone ("Expecting value: line 1
+                # column 1 (char 0)") doesn't distinguish an empty
+                # body from an HTML page landing where JSON was
+                # expected -- surface what was actually returned so
+                # this is self-diagnosing instead of a mystery.
+                snippet = r.text[:200].replace("\n", " ")
+                raise ValueError(
+                    f"non-JSON response, status {r.status_code}, "
+                    f"body: {snippet!r}"
+                ) from e
+
             return data.get("result") != "error", data
 
         except (requests.RequestException, ValueError) as e:
