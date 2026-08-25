@@ -1,7 +1,8 @@
-# Tatoeba sieve
+# Tatoeba Sieve
 
-Two scripts for curating a Tatoeba sentence list, plus a shared module
-they both import from.
+Filters out proper-name-only duplicate sentences from Tatoeba and
+keeps a Tatoeba list in sync with the result. Two scripts, plus a
+shared module they both import from.
 
 Tatoeba's English sentences include a lot of structurally identical
 "template" sentences that differ only in which character name was
@@ -63,10 +64,7 @@ you spot a new false positive.
 
 **Known limitation:** consecutive-capitalized-word merging only
 merges *capitalized* words. A name with a lowercase connector, like
-"Von der Leyen", still splits into two spans around "der". Currently,
-there is no check for city names at the beginning of a sentence. The
-sync script has yet to be fully tested, and in particular, the removal
-function may be wrong.
+"Von der Leyen", still splits into two spans around "der".
 
 ## `tatoebalist.py`
 

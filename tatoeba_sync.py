@@ -754,7 +754,7 @@ def get_credentials():
 
 
 def main():
-    print("Tatoeba additive English-list synchronizer")
+    print("Tatoeba sieve - additive list synchronizer")
     if ENABLE_REMOVALS:
         print(
             "List entries superseded by a better-ranked variant "
